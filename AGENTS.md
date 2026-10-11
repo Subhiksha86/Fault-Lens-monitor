@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- All FaultLens computation lives in src/lib/*.ts (pure, browser-only) and UI in src/components/faultlens; why: keeps the model testable and the UI thin.
+- noUncheckedIndexedAccess is off; why: the numeric matrix code indexes arrays heavily.
