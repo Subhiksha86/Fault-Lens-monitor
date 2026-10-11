@@ -55,14 +55,14 @@ export function syntheticData(seed = 42, nEngines = 100): RawEngine[] {
   for (let e = 0; e < nEngines; e++) {
     const L = 150 + Math.floor(rng() * 151);
     const p = 1.6 + rng() * 1.4;
-    const jitter = Array.from({ length: m }, () => 0.85 + rng() * 0.3);
+    const jitter = Array.from({ length: m }, () => 0.98 + rng() * 0.04);
     const cycles: number[] = [];
     const X: number[][] = [];
     for (let t = 1; t <= L; t++) {
-      const d = Math.pow(t / L, p);
+      const d = Math.pow(t / L, p) + 0.12 * gaussian(rng);
       cycles.push(t);
       X.push(
-        base.map((b, j) => b + scale[j] * (sign[j] * mag[j] * jitter[j] * d + 0.3 * gaussian(rng))),
+        base.map((b, j) => b + scale[j] * (sign[j] * mag[j] * jitter[j] * d + 0.06 * gaussian(rng))),
       );
     }
     engines.push({ id: e + 1, cycles, X });
