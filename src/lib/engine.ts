@@ -96,8 +96,7 @@ function trendCorr(y: number[]): number {
   return syy ? sxy / Math.sqrt(sxx * syy) : 0;
 }
 
-export function analyze(model: Model, Z: number[][]): Analysis {
-  const n = Z.length, m = SENSORS.length;
+function flagPass(model: Model, Z: number[][]) {
   const xhat = reconstruct(model, Z);
   const R = Z.map((z, t) => z.map((v, j) => Math.abs(v - xhat[t][j])));
   const F = R.map((_, t) =>
@@ -107,6 +106,36 @@ export function analyze(model: Model, Z: number[][]): Analysis {
       return c >= FLAG_MIN;
     }),
   );
+  return { xhat, R, F };
+}
+
+/** Iteratively isolates the worst channel, replaces it with its reconstruction, and re-checks the rest. */
+export function analyze(model: Model, Z: number[][]): Analysis {
+  const n = Z.length, m = SENSORS.length;
+  let input = Z.map((r) => r.slice());
+  const first = flagPass(model, input);
+  const xhat = first.xhat.map((r) => r.slice());
+  const R = first.R.map((r) => r.slice());
+  const F = first.F.map((r) => r.map(() => false));
+  const masked = new Set<number>();
+  for (let iter = 0; iter < m; iter++) {
+    const p = iter === 0 ? first : flagPass(model, input);
+    let best = -1, bestCount = 0;
+    for (let j = 0; j < m; j++) {
+      if (masked.has(j)) continue;
+      const c = p.F.filter((f) => f[j]).length;
+      if (c > bestCount) { bestCount = c; best = j; }
+    }
+    if (best < 0) break;
+    masked.add(best);
+    const ff = p.F.findIndex((f) => f[best]);
+    for (let t = 0; t < n; t++) {
+      F[t][best] = p.F[t][best];
+      R[t][best] = p.R[t][best];
+      xhat[t][best] = p.xhat[t][best];
+      if (t >= ff) input[t][best] = p.xhat[t][best];
+    }
+  }
   const firstFlag = SENSORS.map((_, j) => F.findIndex((r) => r[j]));
   const flaggedEnd = SENSORS.map((_, j) => j).filter((j) => F[n - 1][j]);
   const trendOk =
@@ -118,7 +147,7 @@ export function analyze(model: Model, Z: number[][]): Analysis {
   else if (flaggedEnd.length >= COORD_MIN_CHANNELS && trendOk) decision = "INSPECT MACHINE";
   else decision = "MANUAL REVIEW";
   const handled = Z.map((z, t) => z.map((v, j) => (firstFlag[j] >= 0 && t >= firstFlag[j] ? xhat[t][j] : v)));
-  void m;
+  input = handled;
   return { xhat, R, F, firstFlag, flaggedEnd, trendOk, decision, handled };
 }
 
